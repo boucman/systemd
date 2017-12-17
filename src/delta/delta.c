@@ -36,6 +36,7 @@
 #include "parse-util.h"
 #include "path-util.h"
 #include "process-util.h"
+#include "sd-path.h"
 #include "signal-util.h"
 #include "stat-util.h"
 #include "string-util.h"
@@ -43,7 +44,7 @@
 #include "terminal-util.h"
 #include "util.h"
 
-static const char prefixes[] =
+static const char fixed_prefixes[] =
         "/etc\0"
         "/run\0"
         "/usr/local/lib\0"
@@ -54,6 +55,8 @@ static const char prefixes[] =
         "/lib\0"
 #endif
         ;
+
+static char * prefixes= NULL;
 
 static const char suffixes[] =
         "sysctl.d\0"
@@ -654,6 +657,8 @@ static int parse_argv(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
         int r, k, n_found = 0;
+        char * user_config_dir;
+        size_t user_config_dir_len;
 
         log_parse_environment();
         log_open();
@@ -671,6 +676,14 @@ int main(int argc, char *argv[]) {
                 arg_flags |= SHOW_OVERRIDDEN;
 
         pager_open(arg_no_pager, false);
+
+        sd_path_home(SD_PATH_USER_CONFIGURATION,"",&user_config_dir);
+        user_config_dir_len = strlen(user_config_dir);
+
+        prefixes = malloc(sizeof(fixed_prefixes) + user_config_dir_len + 1);
+        memcpy(prefixes, fixed_prefixes, sizeof(fixed_prefixes) - 1);
+        memcpy(prefixes + sizeof(fixed_prefixes) - 1, user_config_dir, user_config_dir_len + 1);
+        prefixes[sizeof(fixed_prefixes) + user_config_dir_len] = 0;
 
         if (optind < argc) {
                 int i;
